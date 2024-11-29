@@ -1,0 +1,38 @@
+[
+    {
+        "id": 1,
+        "question": "What is the capital of France?",
+        "type": "MULTIPLE_CHOICE",
+        "options": ["London", "Berlin", "Paris", "Rome"],
+        "answer": "Paris",
+        "full_answer": "It is because it is.",
+        "image": "https://www.w3schools.com/w3images/paris.jpg"
+    },
+    {
+        "id": 2,
+        "question": "What is the capital of Germany?",
+        "type": "LETTER",
+        "options": null,
+        "answer": "B",
+        "full_answer": "Berlin is the capital of Germany.",
+        "image": "/images/germany.jpg"
+    },
+    {
+        "id": 3,
+        "question": "Order the following words in alphabetical order.",
+        "type": "ORDER",
+        "options": ["A", "B", "C", "D"],
+        "answer": "A, B, C, D",
+        "full_answer": null,
+        "image": null
+    },
+    {
+        "id": 4,
+        "question": "How many sides does a square have?",
+        "type": "NUMBER",
+        "options": null,
+        "answer": "4",
+        "full_answer": null,
+        "image": null
+    }
+]
