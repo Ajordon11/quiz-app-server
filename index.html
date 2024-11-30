@@ -16,7 +16,7 @@
       send.addEventListener('click', () => {
         socket.emit('chat message', input.value);
       });
-      socket.on('server info', (msg) => {
+      socket.on('server-info', (msg) => {
         console.log('Message from server: ', msg);
       });
     </script>

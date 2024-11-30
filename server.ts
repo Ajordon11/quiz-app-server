@@ -9,7 +9,8 @@ const server = createServer(app);
 const io = new Server(server, {
   cors: {
     origin: [process.env.CLIENT_REMOTE_URL, process.env.CLIENT_LOCAL_URL],
-    credentials: true
+    credentials: true,
+    rejectUnauthorized: false
   }
 });
 
@@ -26,7 +27,7 @@ io.on('connection', (socket) => {
     });
     socket.on('chat message', (msg: string) => {
         console.log('message: ' + msg);
-        io.emit('server info', {
+        io.emit('server-info', {
             message: msg
         });
     });
