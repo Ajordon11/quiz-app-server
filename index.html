@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz App</title>
+</head>
+<body>
+    <input type="text" id="input" placeholder="Chat message">
+    <button id="send">Send</button>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      const socket = io();
+      const input = document.getElementById('input');
+      const send = document.getElementById('send');
+      send.addEventListener('click', () => {
+        socket.emit('chat message', input.value);
+      });
+      socket.on('server info', (msg) => {
+        console.log('Message from server: ', msg);
+      });
+    </script>
+</body>
+</html>

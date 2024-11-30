@@ -1,0 +1,14 @@
+{
+    "name": "quiz-app-server",
+    "version": "0.0.1",
+    "description": "Server for test quiz app and socket connection",
+    "type": "module",
+    "dependencies": {
+        "express": "^4.21.1",
+        "socket.io": "^4.8.1"
+    },
+    "devDependencies": {
+        "@types/node": "^22.10.1",
+        "tsx": "^4.19.2"
+    }
+}
