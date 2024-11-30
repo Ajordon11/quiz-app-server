@@ -3,6 +3,9 @@
     "version": "0.0.1",
     "description": "Server for test quiz app and socket connection",
     "type": "module",
+    "scripts": {
+        "start": "tsx --env-file=.env server.ts"
+    },
     "dependencies": {
         "dotenv": "^16.4.5",
         "express": "^4.21.1",
