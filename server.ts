@@ -3,8 +3,8 @@ import { createServer } from "node:http";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { Server } from "socket.io";
-import { Game } from "./game";
-import { Player } from "./player";
+import { Game } from "./classes/game";
+import { Player } from "./classes/player";
 
 const app = express();
 const server = createServer(app);
@@ -43,13 +43,12 @@ io.on("connection", (socket) => {
         name: string;
         rounds: number;
         password: string;
-        questions: string;
+        questionSet: string;
       },
       callback: Function
     ) => {
       console.log("Create new game: " + data.name);
-      const game = new Game(data.name, data.rounds, data.password, data.questions, socket.id);
-      // socket ID in this case is ID of main client, not user
+      const game = new Game(data.name, data.rounds, data.password, data.questionSet, socket.id);
       const gameId = game.id;
       games.set(gameId, game);
       socket.join(gameId);
