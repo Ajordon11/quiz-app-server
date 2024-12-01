@@ -10,6 +10,7 @@ const io = new Server(server, {
   cors: {
     origin: [`${process.env.CLIENT_REMOTE_URL}:*`, `${process.env.CLIENT_LOCAL_URL}:*`],
     credentials: true,
+    methods: ['GET', 'POST']
   }
 });
 
