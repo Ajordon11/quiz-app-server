@@ -1,24 +1,64 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Quiz App</title>
-</head>
-<body>
-    <input type="text" id="input" placeholder="Chat message">
-    <button id="send">Send</button>
+  </head>
+  <body>
+    <button id="create-game">Create Game</button>
+    <button id="create-player">Create Player</button>
+    <button id="join-game">Join Game</button>
+    <button id="test">Test</button>
     <script src="/socket.io/socket.io.js"></script>
     <script>
       const socket = io();
-      const input = document.getElementById('input');
-      const send = document.getElementById('send');
-      send.addEventListener('click', () => {
-        socket.emit('chat message', input.value);
+
+      const createGame = document.getElementById("create-game");
+      createGame.addEventListener("click", () => {
+        const name = prompt("Enter game name");
+        if (!name) return;
+        const rounds = prompt("Enter number of rounds");
+        const password = prompt("Enter password");
+        const questions = prompt("Enter questions");
+        socket.emit("game-create", { name, rounds, password, questions }, (response) => {
+          console.log("Response from server on game create: ", response);
+        });
+      })
+
+      const createPlayer = document.getElementById("create-player");
+      createPlayer.addEventListener("click", () => {
+        const name = prompt("Enter player name");
+        socket.emit("player-create", { name }, (response) => {
+          console.log("Response from server on player create: ", response);
+        });
+      })
+
+      const joinGame = document.getElementById("join-game");
+      joinGame.addEventListener("click", () => {
+        const gameId = prompt("Enter game id");
+        const password = prompt("Enter password");
+        socket.emit("game-join", { gameId, password }, (response) => {
+          console.log("Response from server on game join: ", response);
+        });
+      })
+
+      const send = document.getElementById("test");
+      send.addEventListener("click", () => {
+        socket.emit("test");
       });
-      socket.on('server-info', (msg) => {
-        console.log('Message from server: ', msg);
+
+      socket.on("player-created", (player) => {
+        console.log("Player created: ", player);
+      });
+
+      socket.on("game-created", (gameId) => {
+        console.log("Game created: ", gameId);
+      });
+
+      socket.on("game-joined", (gameId) => {
+        console.log("Game joined: ", gameId);
       });
     </script>
-</body>
+  </body>
 </html>
