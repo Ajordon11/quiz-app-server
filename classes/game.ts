@@ -12,10 +12,10 @@ export class Game {
     currentRound: number;
     password: string;
     questionSetId: string; // identificator for questions from DB
-    questions: QuestionSet;
     mainClientId: string;
     createdAt: Date;
     startedAt: Date | null;
+    questionSet: QuestionSet | null;
     constructor(name: string, rounds: number, password: string, questionSetId: string, mainClientId: string) {
         this.id = uuidv6();
         this.name = name;
@@ -28,8 +28,7 @@ export class Game {
         this.mainClientId = mainClientId;
         this.createdAt = new Date();
         this.startedAt = null;
-        this.questions = new QuestionSet({ name: this.questionSetId, rounds: this.rounds });
-        this.questions.loadQuestions(this.questionSetId);
+        this.questionSet = null;
     }
     
     join(player: Player) {
@@ -46,7 +45,7 @@ export class Game {
         this.players = this.players.filter(player => player.id !== playerId);
     }
 
-    start() {
+    async start() {
         if (this.status !== GameStatus.NOT_STARTED) {
             console.log("Game " + this.name + " is already started or finished");
             return;
@@ -55,10 +54,8 @@ export class Game {
             console.log("Game " + this.name + " needs at least 2 players");
             return;
         }
-        if (!this.questions.loaded) {
-            console.log("Questions for game " + this.name + " are not loaded yet");
-            return;
-        }
+        this.questionSet = new QuestionSet(this.questionSetId, this.rounds);
+        await this.questionSet.loadQuestions();
         this.status = GameStatus.IN_PROGRESS;
         this.startedAt = new Date();
     }
@@ -69,6 +66,20 @@ export class Game {
             return;
         }
         this.status = GameStatus.ENDED;
+    }
+
+    getNextRound() {
+        if (this.status !== GameStatus.IN_PROGRESS) {
+            console.log("Game " + this.name + " is not in progress");
+            return;
+        } 
+        if (this.questionSet == null) {
+            console.log("Questions not loaded");
+            return;
+        }
+        this.currentRound++;
+        return this.questionSet!.getNextQuestion(this.currentRound);
+
     }
 
 }

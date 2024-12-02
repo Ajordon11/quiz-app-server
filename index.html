@@ -10,6 +10,8 @@
     <button id="create-player">Create Player</button>
     <button id="join-game">Join Game</button>
     <button id="test">Test</button>
+    <button id="start-game">Start Game</button>
+    <button id="next-round">Next Round</button>
     <script src="/socket.io/socket.io.js"></script>
     <script>
       const socket = io();
@@ -20,8 +22,8 @@
         if (!name) return;
         const rounds = prompt("Enter number of rounds");
         const password = prompt("Enter password");
-        const questions = prompt("Enter questions");
-        socket.emit("game-create", { name, rounds, password, questions }, (response) => {
+        const questionSet = prompt("Enter questions file name");
+        socket.emit("game-create", { name, rounds, password, questionSet }, (response) => {
           console.log("Response from server on game create: ", response);
         });
       })
@@ -48,6 +50,20 @@
         socket.emit("test");
       });
 
+      const startGame = document.getElementById("start-game");
+      startGame.addEventListener("click", () => {
+        const gameId = prompt("Enter game id");
+        socket.emit("game-start", { gameId }, (response) => {
+          console.log("Response from server on game start: ", response);
+        });
+      })
+
+      const nextRound = document.getElementById("next-round");
+      nextRound.addEventListener("click", () => {
+        const gameId = prompt("Enter game id");
+        socket.emit("next-round", gameId);
+      })
+
       socket.on("player-created", (player) => {
         console.log("Player created: ", player);
       });
@@ -58,6 +74,14 @@
 
       socket.on("game-joined", (gameId) => {
         console.log("Game joined: ", gameId);
+      });
+
+      socket.on("game-started", (gameId) => {
+        console.log("Game started: ", gameId);
+      });
+
+      socket.on("next-question", (question) => {
+        console.log("Next question: ", question);
       });
     </script>
   </body>

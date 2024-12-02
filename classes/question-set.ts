@@ -8,7 +8,7 @@ export class QuestionSet {
     questions: Question[];
     rounds: number;
     loaded: boolean;
-    constructor({ name, rounds }: { name: string; rounds: number }) {
+    constructor(name: string, rounds: number = 1) {
         this.id = "0";
         // todo use this instead
         // this.id = uuidv6();
@@ -18,17 +18,28 @@ export class QuestionSet {
         this.questions = [];
     }
 
-    async loadQuestions(name: string): Promise<Question[]> {
+    async loadQuestions(): Promise<void> {
         try {
-            const data = await readFile(name + ".json", { encoding: "utf-8" });
+            const data = await readFile(this.name + ".json", { encoding: "utf-8" });
             console.log('loaded questions: ', data);
             this.loaded = true;
-            return JSON.parse(data);
+            this.questions = JSON.parse(data);
         } catch (e) {
             console.log(e);
             this.loaded = true;
-            return [];
         }
+    }
+
+    getNextQuestion(round: number): Question | null {
+        if (!this.loaded) {
+            console.log("Questions not loaded");
+            return null;
+        }
+        if (round > this.rounds || this.questions.length < round - 1) {
+            console.log("Round " + round + " not found");
+            return null;
+        }
+        return this.questions[round - 1];
     }
 
 }
