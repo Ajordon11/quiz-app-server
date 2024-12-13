@@ -12,9 +12,22 @@
     <button id="test">Test</button>
     <button id="start-game">Start Game</button>
     <button id="next-round">Next Round</button>
+    <button id="get-score">Get score</button>
+    <button id="start-countdown">Start Countdown</button>
+    <button id="send-answer">Send Correct Answer</button>
+
+    <div>
+      <input type="text" id="game-id" readonly>
+
+    </div>
+
     <script src="/socket.io/socket.io.js"></script>
     <script>
       const socket = io();
+      let currentGameId = "12345";
+      let currentQuestion;
+      const gameId = document.getElementById("game-id");
+      gameId.value = currentGameId;
 
       const createGame = document.getElementById("create-game");
       createGame.addEventListener("click", () => {
@@ -55,13 +68,50 @@
         const gameId = prompt("Enter game id");
         socket.emit("game-start", { gameId }, (response) => {
           console.log("Response from server on game start: ", response);
+          if (response.success) {
+            currentGameId = gameId;
+          }
         });
       })
 
       const nextRound = document.getElementById("next-round");
       nextRound.addEventListener("click", () => {
-        const gameId = prompt("Enter game id");
-        socket.emit("next-round", gameId);
+        // if (!currentGameId) {
+        //   console.log("No game id found");
+        //   return;
+        // }
+        socket.emit("next-round", currentGameId, (response) => {
+          console.log("Next question: ", response.question);
+          currentQuestion = response.question;
+        });
+      })
+
+      const getScore = document.getElementById("get-score");
+      getScore.addEventListener("click", () => {
+        socket.emit("get-score", currentGameId, (response) => {
+          console.log("Response from server on get score: ", response);
+        });
+      })
+
+      const startCountdown = document.getElementById("start-countdown");
+      startCountdown.addEventListener("click", () => {
+        if (!currentGameId) {
+          console.log("No game id found");
+          return;
+        }
+        socket.emit("start-countdown", currentGameId);
+        setTimeout(() => {
+          console.log("Answer is: " + currentQuestion.answer);
+        }, 5000);
+      })
+
+      const sendAnswer = document.getElementById("send-answer");
+      sendAnswer.addEventListener("click", () => {
+        if (!currentGameId) {
+          console.log("No game id found");
+          return;
+        }
+        socket.emit("send-answer", currentGameId);
       })
 
       socket.on("player-created", (player) => {
@@ -76,8 +126,8 @@
         console.log("Game joined: ", gameId);
       });
 
-      socket.on("game-started", (gameId) => {
-        console.log("Game started: ", gameId);
+      socket.on("game-started", (question) => {
+        console.log("Game started: ", question);
       });
 
       socket.on("next-question", (question) => {

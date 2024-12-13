@@ -27,3 +27,23 @@ export class Question {
     this.image = image;
   }
 }
+
+export class QuestionTrimmed {
+  id: string;
+  question: string;
+  type: QuestionType;
+  options: string[] | null;
+
+  constructor(
+    id: string, question: string, type: QuestionType, options: string[] | null
+  ) {
+    this.id = id;
+    this.question = question;
+    this.type = type;
+    this.options = options;
+  }  
+
+  static fromQuestion(question: Question) {
+    return new QuestionTrimmed(question.id, question.question, question.type, question.options);
+  }
+}

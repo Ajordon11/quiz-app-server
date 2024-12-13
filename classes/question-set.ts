@@ -1,4 +1,4 @@
-import { Question } from "./question";
+import { Question, QuestionTrimmed } from "./question";
 import { readFile } from 'node:fs/promises';
 // import { v6 as uuidv6 } from 'uuid';
 
@@ -30,7 +30,7 @@ export class QuestionSet {
         }
     }
 
-    getNextQuestion(round: number): Question | null {
+    getNextQuestion(round: number): QuestionTrimmed | null {
         if (!this.loaded) {
             console.log("Questions not loaded");
             return null;
@@ -39,7 +39,6 @@ export class QuestionSet {
             console.log("Round " + round + " not found");
             return null;
         }
-        return this.questions[round - 1];
+        return QuestionTrimmed.fromQuestion(this.questions[round - 1]);
     }
-
 }
