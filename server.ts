@@ -16,7 +16,7 @@ app.use(cors());
 const server = createServer(app);
 export const io = new Server(server, {
   cors: {
-    origin: [process.env.CLIENT_REMOTE_URL, process.env.CLIENT_LOCAL_URL],
+    origin: [process.env.CLIENT_REMOTE_URL, process.env.CLIENT_LOCAL_URL, process.env.CLIENT_LOCAL_URL_EXTRA],
     methods: ["GET", "POST"],
     credentials: true,
   },
@@ -79,6 +79,10 @@ io.on("connection", (socket) => {
           game.leave(socket.id);
         }
       }
+    }
+    const player = players.get(socket.id);
+    if (player) {
+      player.connected = false;
     }
   });
   socket.on("disconnect", () => {
@@ -153,7 +157,7 @@ io.on("connection", (socket) => {
     });
   });
 
-  socket.on("game-join", (data: { gameId: string; password: string }, callback: Function) => {
+  socket.on("game-join", (data: { gameId: string; code: string }, callback: Function) => {
     const game = games.get(data.gameId);
     if (!game) {
       console.log("Game " + data.gameId + " not found");
@@ -163,10 +167,10 @@ io.on("connection", (socket) => {
       });
       return;
     }
-    if (game.password !== data.password) {
-      console.log("Wrong password for game " + data.gameId);
+    if (game.code !== data.code) {
+      console.log("Wrong code for game " + data.gameId);
       callback({
-        message: "Wrong password",
+        message: "Wrong code",
         success: false,
       });
       return;
@@ -182,7 +186,7 @@ io.on("connection", (socket) => {
     }
     if (game.join(player)) {
       socket.join(data.gameId);
-      socket.emit("game-joined", data.gameId);
+      socket.to(game.id).emit("game-joined", { players: game.players });
       callback({
         message: "Joined game " + data.gameId,
         data: game,
@@ -224,7 +228,6 @@ io.on("connection", (socket) => {
     //   return;
     // }
     if (socket.id !== game.hostId) {
-      // todo should host verify himself by password?
       game.hostId = socket.id;
       socket.join(gameId);
     }
@@ -240,6 +243,37 @@ io.on("connection", (socket) => {
     });
   });
 
+  socket.on("remove-player", async (data: { playerId: string; gameId: string }, callback: Function) => {
+    const game = games.get(data.gameId);
+    if (!game) {
+      console.log("Game " + data.gameId + " not found");
+      callback({
+        message: "Game not found",
+        success: false,
+      });
+      return
+    }
+    const userSockets = await io.in(data.playerId).fetchSockets();
+    const userSocket = userSockets.find(socket => socket.id.toString() === data.playerId);
+    if (!userSocket) {
+      console.log("Player " + data.playerId + " not found");
+      callback({
+        message: "Player not found",
+        success: false,
+      });
+      return;
+    }
+    game.removePlayer(data.playerId);
+    console.log("Player " + data.playerId + " removed from game " + game.name + " " + data.gameId);
+    userSocket.leave(data.gameId);
+    socket.to(data.playerId).emit("player-removed");
+    callback({
+      message: "Player removed",
+      success: true,
+      data: game!.players,
+    });
+  });
+
   socket.on("player-create", (data: { name: string }, callback: Function) => {
     if (players.has(socket.id)) {
       console.log("User " + socket.id + " is already logged in");
@@ -251,15 +285,30 @@ io.on("connection", (socket) => {
     }
     for (let player of players.values()) {
       if (player.name === data.name) {
-        console.log("Player " + data.name + " already exists");
-        callback({
-          message: "Player " + data.name + " already exists, choose another name",
-          success: false,
-        });
-        return;
+        if (player.connected) {
+          console.log("Player " + data.name + " is already connected on other device");
+          callback({
+            message: "Player " + data.name + " is already connected on other device",
+            success: false,
+          });
+          return;
+        } else {
+          players.delete(player.id);
+          player.id = socket.id;
+          player.connected = true;
+          players.set(socket.id, player);
+          socket.emit("player-created", player);
+          console.log("Player " + data.name + " re-joined with id " + player.id);
+          callback({
+            message: "Player " + data.name + " re-joined with id " + player.id,
+            data: player,
+            success: true,
+          });
+          return;
+        }
       }
     }
-    const player = new Player({ id: socket.id, name: data.name, ready: false });
+    const player = new Player({ id: socket.id, name: data.name, connected: true });
     players.set(socket.id, player);
     socket.emit("player-created", player);
     callback({
