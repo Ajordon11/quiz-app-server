@@ -7,6 +7,7 @@ import { Server } from "socket.io";
 import { Game } from "./classes/game";
 import { Player } from "./classes/player";
 import { GameStatus, QuestionType } from "./models";
+import { createDecipheriv } from "node:crypto";
 // import { router } from "./classes/router";
 
 const TEST_GAME_ID = "12345";
@@ -76,7 +77,9 @@ io.on("connection", (socket) => {
       if (games.has(room)) {
         const game = games.get(room);
         if (game) {
+          console.log('Player "' + socket.id + '" left game "' + game.id + '"');
           game.leave(socket.id);
+          socket.to(game.id).emit("player-left", socket.id);
         }
       }
     }
@@ -116,7 +119,7 @@ io.on("connection", (socket) => {
       socket.broadcast.emit("game-created", gameId);
       socket.join(gameId);
       callback({
-        gameId,
+        game,
         success: true,
       });
     }
@@ -152,7 +155,25 @@ io.on("connection", (socket) => {
     socket.join(data.gameId);
     callback({
       message: "Joined game " + data.gameId,
-      gameId: game.id,
+      game: game,
+      success: true,
+    });
+  });
+
+  socket.on("game-join-display", (data: { gameId: string }, callback: Function) => {
+    const game = games.get(data.gameId);
+    if (!game) {
+      console.log("Game " + data.gameId + " not found");
+      callback({
+        message: "Game not found",
+        success: false,
+      });
+      return;
+    }
+    socket.join(data.gameId);
+    callback({
+      message: "Joined game " + data.gameId,
+      data: game,
       success: true,
     });
   });
@@ -186,10 +207,11 @@ io.on("connection", (socket) => {
     }
     if (game.join(player)) {
       socket.join(data.gameId);
+      player.gameId = data.gameId;
       socket.to(game.id).emit("game-joined", { players: game.players });
       callback({
         message: "Joined game " + data.gameId,
-        data: game,
+        data: getGameResponse(game),
         success: true,
       });
     } else {
@@ -211,22 +233,22 @@ io.on("connection", (socket) => {
       });
       return;
     }
-    // if (game.status !== GameStatus.NOT_STARTED) {
-    //   console.log("Game " + gameId + " is already started or finished");
-    //   callback({
-    //     message: "Game is already started or finished",
-    //     success: false,
-    //   });
-    //   return;
-    // }
-    // if (game.players.length < 2) {
-    //   console.log("Game " + gameId + " needs at least 2 players");
-    //   callback({
-    //     message: "Game needs at least 2 players",
-    //     success: false,
-    //   });
-    //   return;
-    // }
+    if (game.status !== GameStatus.NOT_STARTED) {
+      console.log("Game " + gameId + " is already started or finished");
+      callback({
+        message: "Game is already started or finished",
+        success: false,
+      });
+      return;
+    }
+    if (game.players.length < 2) {
+      console.log("Game " + gameId + " needs at least 2 players");
+      callback({
+        message: "Game needs at least 2 players",
+        success: false,
+      });
+      return;
+    }
     if (socket.id !== game.hostId) {
       game.hostId = socket.id;
       socket.join(gameId);
@@ -238,7 +260,8 @@ io.on("connection", (socket) => {
       callback({
         message: "Game started",
         success: true,
-        data: nextRound.full,
+        question: nextRound.full,
+        game: game,
       });
     });
   });
@@ -251,20 +274,22 @@ io.on("connection", (socket) => {
         message: "Game not found",
         success: false,
       });
-      return
-    }
-    const userSockets = await io.in(data.playerId).fetchSockets();
-    const userSocket = userSockets.find(socket => socket.id.toString() === data.playerId);
-    if (!userSocket) {
-      console.log("Player " + data.playerId + " not found");
-      callback({
-        message: "Player not found",
-        success: false,
-      });
       return;
     }
     game.removePlayer(data.playerId);
     console.log("Player " + data.playerId + " removed from game " + game.name + " " + data.gameId);
+
+    const userSockets = await io.in(data.playerId).fetchSockets();
+    const userSocket = userSockets.find((socket) => socket.id.toString() === data.playerId);
+    if (!userSocket) {
+      console.log("Player " + data.playerId + " not found in any game");
+      callback({
+        message: "Player not found",
+        success: true,
+        data: game!.players,
+      });
+      return;
+    }
     userSocket.leave(data.gameId);
     socket.to(data.playerId).emit("player-removed");
     callback({
@@ -275,14 +300,34 @@ io.on("connection", (socket) => {
   });
 
   socket.on("player-create", (data: { name: string }, callback: Function) => {
+    // Re-logging on the same device with the same id (should only happen during testing)
     if (players.has(socket.id)) {
+      const player = players.get(socket.id);
+      if (!player) return;
       console.log("User " + socket.id + " is already logged in");
-      callback({
-        message: "User is already logged in as " + players.get(socket.id)!.name,
-        success: false,
-      });
-      return;
+      if (player.gameId === "") {
+        callback({
+          success: true,
+          message: "User " + socket.id + " is already logged in",
+          data: { player },
+        });
+        return;
+      }
+      if (player.gameId !== "") {
+        const game = games.get(player.gameId);
+        if (!game) return;
+        socket.join(player.gameId);
+        const question = game.currentRound === 0 ? null : game.questionSet?.questions[game.currentRound - 1];
+        callback({
+          success: true,
+          message: "Logging back into game " + player.gameId,
+          data: { player, game: getGameResponse(game), question },
+        });
+        return;
+      }
     }
+
+    // Re-logging on the same device with a different id (after refresh)
     for (let player of players.values()) {
       if (player.name === data.name) {
         if (player.connected) {
@@ -293,27 +338,33 @@ io.on("connection", (socket) => {
           });
           return;
         } else {
+          const game = games.get(player.gameId);
+          if (!game) return;
           players.delete(player.id);
           player.id = socket.id;
           player.connected = true;
           players.set(socket.id, player);
+          socket.join(player.gameId);
           socket.emit("player-created", player);
           console.log("Player " + data.name + " re-joined with id " + player.id);
+          const question = game.currentRound === 0 ? null : game.questionSet?.questions[game.currentRound - 1];
           callback({
             message: "Player " + data.name + " re-joined with id " + player.id,
-            data: player,
+            data: { player, game: getGameResponse(game), question },
             success: true,
           });
           return;
         }
       }
     }
+
+    // New player
     const player = new Player({ id: socket.id, name: data.name, connected: true });
     players.set(socket.id, player);
     socket.emit("player-created", player);
     callback({
       message: "Player created with id " + player.id,
-      data: player,
+      data: { player },
       success: true,
     });
   });
@@ -326,10 +377,21 @@ io.on("connection", (socket) => {
     const game = games.get(data.gameId);
     if (!game) {
       console.log("Game " + data.gameId + " not found");
+      callback({
+        message: "Game not found",
+        success: false,
+      });
       return;
     }
     const nextRound = game.getNextRound();
-    if (!nextRound) return;
+    if (!nextRound) {
+      callback({
+        message: "No more questions",
+        success: true,
+        data: null,
+      });
+      return;
+    }
     socket.to(data.gameId).emit("next-question", nextRound.question);
     callback({
       success: true,
@@ -337,41 +399,63 @@ io.on("connection", (socket) => {
     });
   });
 
-  socket.on("start-countdown", (gameId: string) => {
-    const game = games.get(gameId);
+  socket.on("start-countdown", (data: { gameId: string }) => {
+    const game = games.get(data.gameId);
     if (!game) {
-      console.log("Game " + gameId + " not found");
+      console.log("Game " + data.gameId + " not found");
       return;
     }
     if (game.status !== GameStatus.IN_PROGRESS) {
-      console.log("Game " + gameId + " is not in progress");
+      console.log("Game " + data.gameId + " is not in progress");
       return;
     }
-    socket.to(gameId).emit("countdown");
+    console.log("Sending countdown for round " + game.currentRound + " of game " + data.gameId);
+    socket.nsp.to(data.gameId).emit("countdown");
     setTimeout(() => {
-      console.log("Answers closed for round " + game.currentRound + " of game " + gameId);
+      console.log("Answers closed for round " + game.currentRound + " of game " + data.gameId);
       game.answersOpen = false;
     }, 5500); // 500ms grace period compared to 5s on client
   });
 
-  socket.on("answer", (data: { answer: string; gameId: string }) => {
+  socket.on("answer", (data: { answer: string; gameId: string }, callback: Function) => {
     console.log("Answer received: ", data, socket.id);
     const game = games.get(data.gameId);
     if (!game) {
       console.log("Game " + data.gameId + " not found");
       return;
-    } else {
-      // game.saveAnswer(socket.id, data.answer);
     }
-  });
-
-  socket.on("send-answer", (gameId: string) => {
-    const game = games.get(gameId);
-    if (!game) {
-      console.log("Game " + gameId + " not found");
+    const saved = game.saveAnswer(socket.id, data.answer);
+    if (!saved) {
+      console.log("Answer not saved for player " + socket.id + " in game " + data.gameId);
+      callback({
+        success: false,
+      });
       return;
     }
-    socket.to(gameId).emit("correct-answer", game.getCorrectAnswer());
+    console.log("Answer saved for player " + socket.id + " in game " + data.gameId);
+    callback({
+      success: true,
+    });
+    console.log("Players after add score: ", game.players);
+    socket.to(game.hostId).emit("answers-updated", game.players);
+  });
+
+  socket.on("show-answer", (data: { gameId: string }) => {
+    const game = games.get(data.gameId);
+    if (!game) {
+      console.log("Game " + data.gameId + " not found");
+      return;
+    }
+    socket.nsp.to(data.gameId).emit("correct-answer", game.getCorrectAnswer());
+  });
+
+  socket.on("show-score", (data: { gameId: string }) => {
+    const game = games.get(data.gameId);
+    if (!game) {
+      console.log("Game " + data.gameId + " not found");
+      return;
+    }
+    socket.nsp.to(data.gameId).emit("show-score", game.players);
   });
 });
 

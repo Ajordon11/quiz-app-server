@@ -40,21 +40,40 @@ export class Game {
   }
 
   join(player: Player) {
+    if (this.status === GameStatus.ENDED) {
+      console.log("Game " + this.name + " has already ended");
+      return false;
+    }
     if (this.status === GameStatus.NOT_STARTED) {
       console.log(`Player ${player.name}(${player.id}) joined game ${this.name}`);
+      player.gameId = this.id;
       this.players.push(player);
       return true;
     }
-    console.log("Game " + this.name + " is already started or finished");
+    const playerIndex = this.players.findIndex((p) => p.name === player.name);
+    console.log("searching for player " + player.name + " in game ", this.players, playerIndex);
+    if (playerIndex !== -1 && !this.players[playerIndex].connected) {
+      console.log(`Player ${player.name}(${player.id}) re-joined game ${this.name}`);
+      player.gameId = this.id;
+      this.players[playerIndex] = player;
+      return true;
+    }
+    console.log("Game " + this.name + " is already started");
     return false;
   }
 
   leave(playerId: string) {
     if (playerId === this.hostId) {
+      console.log('Removing host from game "' + this.name + '"');
       this.hostId = "";
       return;
     }
-    this.players = this.players.filter((player) => player.id !== playerId);
+    const index = this.players.findIndex((player) => player.id === playerId);
+    if (index === -1) {
+      console.log("Player " + playerId + " is not in game " + this.name);
+      return;
+    }
+    this.players[index].connected = false;
   }
 
   async start() {
@@ -68,6 +87,13 @@ export class Game {
     }
     this.questionSet = new QuestionSet(this.questionSetId, this.rounds);
     await this.questionSet.loadQuestions();
+    if (this.questionSet.rounds !== this.rounds) {
+      this.rounds = this.questionSet.rounds;
+    }
+    this.players.forEach((player) => {
+      player.score = 0;
+      player.clearAnswer();
+    });
     this.status = GameStatus.IN_PROGRESS;
     this.startedAt = new Date();
   }
@@ -92,40 +118,36 @@ export class Game {
     this.currentRound++;
     this.answersOpen = true;
     this.firstAnswerReceived = false;
-    // return {
-    //     id: "1",
-    //     question: "Test question okay with long question text, so be aware that this is possibility?",
-    //     type: QuestionType.MULTIPLE_CHOICE,
-    //     options: ["Abecede", "Besxsesds", "Cccc", "Dasdsadasdasds", "E", "F"],
-    //     image: null,
-    //   };
-    const question = {
-      id: "3",
-      question: "Order the following words in alphabetical order.",
-      type: QuestionType.LETTER,
-      options: ["Abeeeeee", "Cecsadasdd", "Dedsafgasg", "Bdddddddddddddd"],
-      image: null,
-      answer: "Abeeeeee,Bdddddddddddddd,Cecsadasdd,Dedsafgasg",
-      full_answer: "It is because it is.",
-    };
+
+    const question = this.questionSet!.getNextQuestion(this.currentRound);
+    if (question == null) {
+      this.finish();
+      return null;
+    }
     return { question: QuestionTrimmed.fromQuestion(question), full: question };
-    // return this.questionSet!.getNextQuestion(this.currentRound);
   }
 
-  saveAnswer(playerId: string, answer: string) {
+  saveAnswer(playerId: string, answer: string): boolean {
     if (this.status !== GameStatus.IN_PROGRESS) {
       console.log("Game " + this.name + " is not in progress");
-      return;
+      return false;
     }
     if (!this.answersOpen) {
       console.log("Answers are not open, playert " + playerId + " can't save answer");
-      return;
+      return false;
     }
     this.evaulateAnswer(playerId, answer);
+    return true;
   }
 
   evaulateAnswer(playerId: string, answer: string) {
-    const correct = this.questionSet!.questions[this.currentRound - 1].answer === answer;
+    const player = this.players.find((player) => player.id === playerId);
+    console.log("Players before add score: ", this.players, "player: ", player);
+    if (!player) {
+      return;
+    }
+    player.lastAnswer = answer;
+    const correct = this.isAnswerCorrect(answer, this.currentRound);
     if (!correct) {
       return;
     }
@@ -134,16 +156,11 @@ export class Game {
       this.firstAnswerReceived = true;
       score += 1;
     }
-    if (this.score[playerId]) {
-      this.score[playerId] += score;
-    } else {
-      this.score[playerId] = score;
-    }
+    player.addScore(score);
   }
 
   getCorrectAnswer(): string {
-    return "A,B,C,D";
-    // return this.questionSet!.questions[this.currentRound - 1].answer; todo fix me
+    return this.questionSet!.questions[this.currentRound - 1].answer;
   }
 
   setNewHost(id: string) {
@@ -152,5 +169,19 @@ export class Game {
 
   removePlayer(playerId: string) {
     this.players = this.players.filter((player) => player.id !== playerId);
+  }
+  isAnswerCorrect(answer: string, currentRound: number): boolean {
+    const question = this.questionSet!.questions[currentRound - 1];
+    if (QuestionType.NUMBER === question.type) {
+      const numAnswer = parseInt(answer);
+      const numQuestion = parseInt(question.answer);
+      return numAnswer === numQuestion;
+    } else if (QuestionType.LETTER === question.type) {
+      const correctAnswer = question.answer.length === 1 ? question.answer : question.answer[0];
+      const answers = answer.split(" ");
+      return answers.includes(correctAnswer);
+    } else {
+      return answer === question.answer;
+    }
   }
 }

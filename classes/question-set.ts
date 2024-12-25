@@ -24,13 +24,20 @@ export class QuestionSet {
             console.log('loaded questions: ', data);
             this.loaded = true;
             this.questions = JSON.parse(data);
+            if (this.rounds > this.questions.length) {
+                console.log('Not enough questions for ' + this.rounds, ' rounds, setting to ' + this.questions.length);
+                this.rounds = this.questions.length;
+            } else if (this.rounds < this.questions.length) {
+                console.log('Loading only first ' + this.rounds, ' rounds, from the dataset.');
+                this.questions = this.questions.slice(0, this.rounds);
+            }
         } catch (e) {
             console.log(e);
             this.loaded = true;
         }
     }
 
-    getNextQuestion(round: number): QuestionTrimmed | null {
+    getNextQuestion(round: number): Question | null {
         if (!this.loaded) {
             console.log("Questions not loaded");
             return null;
@@ -39,6 +46,6 @@ export class QuestionSet {
             console.log("Round " + round + " not found");
             return null;
         }
-        return QuestionTrimmed.fromQuestion(this.questions[round - 1]);
+        return this.questions[round - 1]
     }
 }
