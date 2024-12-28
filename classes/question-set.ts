@@ -20,7 +20,7 @@ export class QuestionSet {
 
     async loadQuestions(): Promise<void> {
         try {
-            const data = await readFile(this.name + ".json", { encoding: "utf-8" });
+            const data = await readFile(`./game_data/${this.name}.json`, { encoding: "utf-8" }); 
             console.log('loaded questions: ', data);
             this.loaded = true;
             this.questions = JSON.parse(data);
