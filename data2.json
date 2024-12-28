@@ -6,7 +6,7 @@
       "options": null,
       "answer": 32,
       "full_answer": "Dospelý človek má typicky 32 stálych zubov, vrátane štyroch zubov múdrosti.",
-      "image": null
+      "image": "test_image1.webp"
     },
     {
       "id": 2,
@@ -24,7 +24,7 @@
       "options": ["USA", "Čína", "Veľká Británia", "Rusko"],
       "answer": "USA",
       "full_answer": "USA získali 46 zlatých medailí na Olympijských hrách v Riu v roku 2016.",
-      "image": "https://example.com/olympic_gold.jpg"
+      "image": "https://images.unsplash.com/photo-1564527570687-f21b90a09746?q=80&w=2535&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
     },
     {
       "id": 4,

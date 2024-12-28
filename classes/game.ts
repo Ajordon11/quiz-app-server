@@ -124,6 +124,9 @@ export class Game {
       this.finish();
       return null;
     }
+    this.players.forEach((player) => {
+      player.clearAnswer();
+    });
     return { question: QuestionTrimmed.fromQuestion(question), full: question };
   }
 
@@ -142,8 +145,11 @@ export class Game {
 
   evaulateAnswer(playerId: string, answer: string) {
     const player = this.players.find((player) => player.id === playerId);
-    console.log("Players before add score: ", this.players, "player: ", player);
     if (!player) {
+      return;
+    }
+    if (player.lastAnswer !== "") {
+      console.log("Player " + playerId + " already answered");
       return;
     }
     player.lastAnswer = answer;
@@ -159,8 +165,11 @@ export class Game {
     player.addScore(score);
   }
 
-  getCorrectAnswer(): string {
-    return this.questionSet!.questions[this.currentRound - 1].answer;
+  getCorrectAnswer(): { answer: string; full: string | null } {
+    return {
+      answer: this.questionSet!.questions[this.currentRound - 1].answer,
+      full: this.questionSet!.questions[this.currentRound - 1].full_answer,
+    };
   }
 
   setNewHost(id: string) {
@@ -180,6 +189,20 @@ export class Game {
       const correctAnswer = question.answer.length === 1 ? question.answer : question.answer[0];
       const answers = answer.split(" ");
       return answers.includes(correctAnswer);
+    } else if (QuestionType.ORDER === question.type) {
+      const correctAnswers = typeof question.answer === "string" ? question.answer.split(",") : question.answer;
+      correctAnswers.forEach((a) => a.trim());
+      const actualAnswers = typeof answer === "string" ? answer.split(",") : answer;
+      actualAnswers.forEach((a) => a.trim());
+      if (correctAnswers.length !== actualAnswers.length) {
+        return false;
+      }
+      for (let i = 0; i < correctAnswers.length; i++) {
+        if (correctAnswers[i] !== actualAnswers[i]) {
+          return false;
+        }
+      } 
+      return true;
     } else {
       return answer === question.answer;
     }

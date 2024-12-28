@@ -33,17 +33,19 @@ export class QuestionTrimmed {
   question: string;
   type: QuestionType;
   options: string[] | null;
+  image: string | null;
 
   constructor(
-    id: string, question: string, type: QuestionType, options: string[] | null
+    id: string, question: string, type: QuestionType, options: string[] | null, image: string | null
   ) {
     this.id = id;
     this.question = question;
     this.type = type;
     this.options = options;
+    this.image = image;
   }  
 
   static fromQuestion(question: Question) {
-    return new QuestionTrimmed(question.id, question.question, question.type, question.options);
+    return new QuestionTrimmed(question.id, question.question, question.type, question.options, question.image);
   }
 }

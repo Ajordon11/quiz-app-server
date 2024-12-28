@@ -386,16 +386,16 @@ io.on("connection", (socket) => {
     const nextRound = game.getNextRound();
     if (!nextRound) {
       callback({
-        message: "No more questions",
+        message: "No more questions, show score instead",
         success: true,
         data: null,
       });
       return;
     }
-    socket.to(data.gameId).emit("next-question", nextRound.question);
+    socket.to(data.gameId).emit("next-question", { question: nextRound.question, round: game.currentRound });
     callback({
       success: true,
-      data: nextRound.full,
+      data: { question: nextRound.full, round: game.currentRound },
     });
   });
 
@@ -436,7 +436,6 @@ io.on("connection", (socket) => {
     callback({
       success: true,
     });
-    console.log("Players after add score: ", game.players);
     socket.to(game.hostId).emit("answers-updated", game.players);
   });
 
@@ -456,6 +455,28 @@ io.on("connection", (socket) => {
       return;
     }
     socket.nsp.to(data.gameId).emit("show-score", game.players);
+  });
+
+  socket.on("delete-game", (data: { gameId: string }) => {
+    const game = games.get(data.gameId);
+    if (!game) {
+      console.log("Game " + data.gameId + " not found");
+      return;
+    }
+    games.delete(data.gameId);
+    console.log("Game " + data.gameId + " deleted");
+    socket.nsp.to(data.gameId).emit("game-deleted");
+  });
+
+  socket.on("end-game", (data: { gameId: string }) => {
+    const game = games.get(data.gameId);
+    if (!game) {
+      console.log("Game " + data.gameId + " not found");
+      return;
+    }
+    console.log("Game " + data.gameId + " ended");
+    socket.nsp.to(data.gameId).emit("game-ended", game);
+    games.delete(data.gameId);
   });
 });
 

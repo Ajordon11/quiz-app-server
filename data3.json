@@ -1,0 +1,11 @@
+[
+  {
+    "id": 10,
+    "question": "Zoraďte tieto slovenské mestá podľa počtu obyvateľov (od najväčšieho po najmenšie).",
+    "type": "ORDER",
+    "options": ["Bratislava", "Košice", "Prešov", "Žilina"],
+    "answer": ["Bratislava", "Košice", "Prešov", "Žilina"],
+    "full_answer": "Bratislava je najväčšie slovenské mesto, nasledujú Košice, Prešov a Žilina.",
+    "image": "test_image2.webp"
+  }
+]
