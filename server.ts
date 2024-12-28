@@ -299,7 +299,8 @@ io.on("connection", (socket) => {
     });
   });
 
-  socket.on("player-create", (data: { name: string }, callback: Function) => {
+  socket.on("player-create", (data: { name: string, song: string }, callback: Function) => {
+    console.log("Create player ", data);
     // Re-logging on the same device with the same id (should only happen during testing)
     if (players.has(socket.id)) {
       const player = players.get(socket.id);
@@ -359,7 +360,7 @@ io.on("connection", (socket) => {
     }
 
     // New player
-    const player = new Player({ id: socket.id, name: data.name, connected: true });
+    const player = new Player({ id: socket.id, name: data.name, connected: true, song: data.song });
     players.set(socket.id, player);
     socket.emit("player-created", player);
     callback({
@@ -478,6 +479,29 @@ io.on("connection", (socket) => {
     socket.nsp.to(data.gameId).emit("game-ended", game);
     games.delete(data.gameId);
   });
+
+  socket.on("show-first", (data: { gameId: string }, callback: Function) => {
+    const game = games.get(data.gameId);
+    if (!game) {
+      console.log("Game " + data.gameId + " not found");
+      callback({ success: false, message: "Game not found" });
+      return;
+    }
+    const firstPlayerId = game.getFirstPlayerId();
+    if (!firstPlayerId) {
+      console.log("Game " + data.gameId + " has no first player for question " + game.currentRound);
+      callback({ success: false, message: "Game has no first player for question " + game.currentRound });
+      return;
+    }
+    const player = players.get(firstPlayerId);
+    if (!player) {
+      console.log("Player " + firstPlayerId + " not found");
+      callback({ success: false, message: "Player not found" });
+      return;
+    }
+    socket.nsp.to(data.gameId).emit("show-first", player);
+    callback({ success: true, data: player });
+  })
 });
 
 server.listen(process.env.PORT, () => {

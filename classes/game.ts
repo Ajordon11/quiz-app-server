@@ -22,6 +22,7 @@ export class Game {
   answersOpen: boolean;
   score: { [key: string]: number } = {};
   firstAnswerReceived: boolean = true;
+  firstPlayerId: string | null = null;
   constructor(name: string, rounds: number, password: string, code: string, questionSetId: string, hostId: string) {
     this.id = uuidv6();
     this.name = name;
@@ -118,6 +119,7 @@ export class Game {
     this.currentRound++;
     this.answersOpen = true;
     this.firstAnswerReceived = false;
+    this.firstPlayerId = null;
 
     const question = this.questionSet!.getNextQuestion(this.currentRound);
     if (question == null) {
@@ -160,6 +162,7 @@ export class Game {
     let score = DEFAULT_SCORE;
     if (!this.firstAnswerReceived) {
       this.firstAnswerReceived = true;
+      this.firstPlayerId = playerId;
       score += 1;
     }
     player.addScore(score);
@@ -206,5 +209,12 @@ export class Game {
     } else {
       return answer === question.answer;
     }
+  }
+
+  getFirstPlayerId(): string | null {
+    if (!this.firstAnswerReceived) {
+      return null;
+    }
+    return this.firstPlayerId;
   }
 }
