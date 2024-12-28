@@ -23,6 +23,7 @@ export class Game {
   score: { [key: string]: number } = {};
   firstAnswerReceived: boolean = true;
   firstPlayerId: string | null = null;
+  currentlyCorrectPlayers: number = 0;
   constructor(name: string, rounds: number, password: string, code: string, questionSetId: string, hostId: string) {
     this.id = uuidv6();
     this.name = name;
@@ -120,6 +121,7 @@ export class Game {
     this.answersOpen = true;
     this.firstAnswerReceived = false;
     this.firstPlayerId = null;
+    this.currentlyCorrectPlayers = 0;
 
     const question = this.questionSet!.getNextQuestion(this.currentRound);
     if (question == null) {
@@ -165,13 +167,15 @@ export class Game {
       this.firstPlayerId = playerId;
       score += 1;
     }
+    this.currentlyCorrectPlayers += 1;
     player.addScore(score);
   }
 
-  getCorrectAnswer(): { answer: string; full: string | null } {
+  getCorrectAnswer(): { answer: string; full: string | null, correctPlayers: number } {
     return {
       answer: this.questionSet!.questions[this.currentRound - 1].answer,
       full: this.questionSet!.questions[this.currentRound - 1].full_answer,
+      correctPlayers: this.currentlyCorrectPlayers
     };
   }
 
