@@ -217,4 +217,14 @@ export class Game {
     }
     return this.firstPlayerId;
   }
+
+  editPlayerScore(playerId: string, score: number): boolean {
+    const player = this.players.find((player) => player.id === playerId);
+    if (!player) {
+      console.log("Player " + playerId + " not found in game " + this.name);
+      return false;
+    }
+    player.score = score;
+    return true;
+  }
 }

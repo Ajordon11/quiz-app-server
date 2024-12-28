@@ -502,6 +502,23 @@ io.on("connection", (socket) => {
     socket.nsp.to(data.gameId).emit("show-first", player);
     callback({ success: true, data: player });
   })
+
+  socket.on("edit-player-score", (data: { playerId: string; score: number; gameId: string }, callback: Function) => {
+    const game = games.get(data.gameId);
+    if (!game) {
+      console.log("Game " + data.gameId + " not found");
+      callback({ success: false, message: "Game not found" });
+      return;
+    }
+    const edited = game.editPlayerScore(data.playerId, data.score);
+    if (!edited) {
+      console.log("Player " + data.playerId + " not found in game " + data.gameId);
+      callback({ success: false, message: "Player not found" });
+      return;
+    }
+    console.log("Player " + data.playerId + " score edited in game " + data.gameId + " to " + data.score);
+    callback({ success: true, data: game.players });
+  })
 });
 
 server.listen(process.env.PORT, () => {
