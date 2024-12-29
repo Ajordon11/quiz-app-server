@@ -24,6 +24,8 @@ export class Game {
   firstAnswerReceived: boolean = true;
   firstPlayerId: string | null = null;
   currentlyCorrectPlayers: number = 0;
+  manualMode: boolean;
+  manualQuestion: Question | null = null;
   constructor(name: string, rounds: number, password: string, code: string, questionSetId: string, hostId: string) {
     this.id = uuidv6();
     this.name = name;
@@ -39,6 +41,7 @@ export class Game {
     this.startedAt = null;
     this.questionSet = null;
     this.answersOpen = false;
+    this.manualMode = questionSetId === '';
   }
 
   join(player: Player) {
@@ -117,21 +120,26 @@ export class Game {
       console.log("Questions not loaded");
       return null;
     }
-    this.currentRound++;
-    this.answersOpen = true;
-    this.firstAnswerReceived = false;
-    this.firstPlayerId = null;
-    this.currentlyCorrectPlayers = 0;
+
+    this.resetForNextRound();
 
     const question = this.questionSet!.getNextQuestion(this.currentRound);
     if (question == null) {
       this.finish();
       return null;
     }
+    return { question: QuestionTrimmed.fromQuestion(question), full: question };
+  }
+
+  resetForNextRound() {
+    this.currentRound++;
+    this.answersOpen = true;
+    this.firstAnswerReceived = false;
+    this.firstPlayerId = null;
+    this.currentlyCorrectPlayers = 0;
     this.players.forEach((player) => {
       player.clearAnswer();
     });
-    return { question: QuestionTrimmed.fromQuestion(question), full: question };
   }
 
   saveAnswer(playerId: string, answer: string): boolean {
@@ -172,6 +180,13 @@ export class Game {
   }
 
   getCorrectAnswer(): { answer: string; full: string | null, correctPlayers: number } {
+    if (this.manualMode && this.manualQuestion) {
+      return {
+        answer: this.manualQuestion.answer,
+        full: this.manualQuestion.full_answer,
+        correctPlayers: this.currentlyCorrectPlayers
+      }
+    }
     return {
       answer: this.questionSet!.questions[this.currentRound - 1].answer,
       full: this.questionSet!.questions[this.currentRound - 1].full_answer,
@@ -187,7 +202,12 @@ export class Game {
     this.players = this.players.filter((player) => player.id !== playerId);
   }
   isAnswerCorrect(answer: string, currentRound: number): boolean {
-    const question = this.questionSet!.questions[currentRound - 1];
+    let question;
+    if (this.manualMode && this.manualQuestion) {
+      question = this.manualQuestion;
+    } else {
+      question = this.questionSet!.questions[currentRound - 1];
+    }
     if (QuestionType.NUMBER === question.type) {
       const numAnswer = parseInt(answer);
       const numQuestion = parseInt(question.answer);
@@ -230,5 +250,9 @@ export class Game {
     }
     player.score = score;
     return true;
+  }
+
+  saveManualQuestion(question: Question) {
+    this.manualQuestion = question;
   }
 }

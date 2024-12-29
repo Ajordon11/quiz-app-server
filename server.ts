@@ -8,6 +8,7 @@ import { Game } from "./classes/game";
 import { Player } from "./classes/player";
 import { GameStatus, QuestionType } from "./models";
 import { createDecipheriv } from "node:crypto";
+import { Question, QuestionTrimmed } from "./classes/question";
 // import { router } from "./classes/router";
 
 const TEST_GAME_ID = "12345";
@@ -254,15 +255,25 @@ io.on("connection", (socket) => {
       socket.join(gameId);
     }
     game.start().then(() => {
-      const nextRound = game.getNextRound();
-      if (!nextRound) return;
-      socket.to(gameId).emit("game-started", nextRound.question);
-      callback({
-        message: "Game started",
-        success: true,
-        question: nextRound.full,
-        game: game,
-      });
+      if (game.manualMode) {
+        game.resetForNextRound();
+        callback({
+          message: "Game started, waiting for 1st question",
+          success: true,
+          question: null,
+          game: game,
+        });
+      } else {
+        const nextRound = game.getNextRound();
+        if (!nextRound) return;
+        socket.to(gameId).emit("game-started", nextRound.question);
+        callback({
+          message: "Game started",
+          success: true,
+          question: nextRound.full,
+          game: game,
+        });
+      }
     });
   });
 
@@ -299,7 +310,7 @@ io.on("connection", (socket) => {
     });
   });
 
-  socket.on("player-create", (data: { name: string, song: string }, callback: Function) => {
+  socket.on("player-create", (data: { name: string; song: string }, callback: Function) => {
     console.log("Create player ", data);
     // Re-logging on the same device with the same id (should only happen during testing)
     if (players.has(socket.id)) {
@@ -399,6 +410,43 @@ io.on("connection", (socket) => {
       data: { question: nextRound.full, round: game.currentRound },
     });
   });
+
+  socket.on(
+    "next-round-manual",
+    (
+      data: {
+        gameId: string;
+        question: string;
+        type: QuestionType;
+        options: string[] | null;
+        answer: string;
+        fullAnswer: string | null;
+        image: string | null;
+      },
+      callback: Function
+    ) => {
+      const game = games.get(data.gameId);
+      if (!game) {
+        console.log("Game " + data.gameId + " not found");
+        callback({
+          message: "Game not found",
+          success: false,
+        });
+        return;
+      }
+      game.resetForNextRound();
+      const question = new Question(data.question, data.type, data.options, data.answer, data.fullAnswer, data.image);
+      game.saveManualQuestion(question);
+      const nextRound = {
+        question: QuestionTrimmed.fromQuestion(question), full: question
+      };
+      socket.to(data.gameId).emit("next-question", { question: nextRound.question, round: game.currentRound });
+      callback({
+        success: true,
+        data: { question: nextRound.full, round: game.currentRound },
+      });
+    }
+  );
 
   socket.on("start-countdown", (data: { gameId: string }) => {
     const game = games.get(data.gameId);
@@ -501,7 +549,7 @@ io.on("connection", (socket) => {
     }
     socket.nsp.to(data.gameId).emit("show-first", player);
     callback({ success: true, data: player });
-  })
+  });
 
   socket.on("edit-player-score", (data: { playerId: string; score: number; gameId: string }, callback: Function) => {
     const game = games.get(data.gameId);
@@ -518,7 +566,7 @@ io.on("connection", (socket) => {
     }
     console.log("Player " + data.playerId + " score edited in game " + data.gameId + " to " + data.score);
     callback({ success: true, data: game.players });
-  })
+  });
 });
 
 server.listen(process.env.PORT, () => {

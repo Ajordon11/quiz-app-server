@@ -19,6 +19,11 @@ export class QuestionSet {
     }
 
     async loadQuestions(): Promise<void> {
+        if (this.name === "") {
+            // Manual mode, no questions to load
+            this.loaded = true;
+            this.questions = [];
+        }
         try {
             const data = await readFile(`./game_data/${this.name}.json`, { encoding: "utf-8" }); 
             console.log('loaded questions: ', data);
