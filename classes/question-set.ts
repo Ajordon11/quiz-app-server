@@ -23,6 +23,7 @@ export class QuestionSet {
             // Manual mode, no questions to load
             this.loaded = true;
             this.questions = [];
+            return;
         }
         try {
             const data = await readFile(`./game_data/${this.name}.json`, { encoding: "utf-8" }); 
