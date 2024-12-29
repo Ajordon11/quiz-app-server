@@ -62,9 +62,9 @@ export class Game {
       player.gameId = this.id;
       this.players[playerIndex] = player;
       return true;
+    } else {
+      return false;
     }
-    console.log("Game " + this.name + " is already started");
-    return false;
   }
 
   leave(playerId: string) {
